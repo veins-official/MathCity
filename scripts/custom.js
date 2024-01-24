@@ -1,7 +1,7 @@
 const images = []; seed = (new Date()).getMilliseconds();
 
 
-function startGame() { layers.push(new Layer()); load("Menu"); }
+function startGame() { layers.push(new Layer()); objects.push(new Background()); load("Menu"); }
 
 
 function load(scene) { clearObjects(); eval(`load${scene}()`); }
@@ -11,7 +11,7 @@ function loadGame() {
     layers[1].context.font = "200px Monaco, monospace";
     layers[1].context.textAlign = "center"; layers[1].context.textBaseline = "middle";
 
-    objects.push(new Task()); objects.push(new Background()); objects.push(new Pet());
+    objects.push(new Task()); objects.push(new Pet());
     for (let i = 0; i < 9; i++) objects.push(new NumButton(i));
 
     objects.push(new MenuButton(100, 100, 150, 150, images[8], () => { load("Menu"); }));
@@ -20,8 +20,6 @@ function loadGame() {
 
 
 function loadMenu() {
-    objects.push(new Background());
-
     layers[1].context.font = "100px Monaco, monospace";
     layers[1].context.textBaseline = "middle"; layers[1].context.textAlign = "left";
 
@@ -44,13 +42,13 @@ function loadMenu() {
 
 
 function loadContact() {
-    objects.push(new Background());
     layers[1].context.font = "50px Monaco, monospace";
     layers[1].context.textAlign = "center"; layers[1].context.textBaseline = "middle";
-    let lines = ["Художники, 1А", "Софья Холодова", "", "Программист, 11Б", "Илья Холодов"];
+    let lines = ["Художники", "Коллектив 1А", "", "Программист", "Илья Холодов"];
     for (let i = 0; i < lines.length; i++) {
-        layers[1].context.fillText(lines[i], 540, (i + 1) * 60);
+        layers[1].context.fillText(lines[i], 540, 800 + i * 60);
     }
+
     objects.push(new MenuButton(100, 100, 150, 150, images[8], () => { load("Menu"); }));
     objects[2].render();
     objects.push(new MenuButton(1080 - 100, 1920 - 100, 150, 150, images[9], () => { window.open("https://vk.com/id450952979", "_blank").focus(); }));
@@ -59,7 +57,6 @@ function loadContact() {
 
 
 function loadAbout() {
-    objects.push(new Background());
     objects.push(new MenuButton(100, 100, 150, 150, images[8], () => { load("Menu"); }));
     objects[2].render();
 
@@ -73,7 +70,7 @@ function loadAbout() {
 }
 
 
-function clearObjects() { for (let i = 1; i < objects.length; i++) { objects.splice(i, 1); i--; } for (let i = 0; i < layers.length; i++) clearTransform(new Vector4(540, 960, 1080, 1920), i); }
+function clearObjects() { for (let i = 2; i < objects.length; i++) { objects.splice(i, 1); i--; } for (let i = 0; i < layers.length; i++) clearTransform(new Vector4(540, 960, 1080, 1920), i); }
 
 
 class Loader {
@@ -145,7 +142,6 @@ class Task extends GameObject {
             this.task = `${num1} - ${num2}`
             this.answer = num1 - num2;
         }
-        // layers[1].context.fillText(this.task, this.transform.position.x, this.transform.position.y + 20);
     }
 
     setResult(value) {
@@ -162,7 +158,7 @@ class Task extends GameObject {
 
 class NumButton extends MenuButton {
     constructor(value) {
-        super(540 + (value - 3 * float2int(value / 3) - 1) * 300, 1410 + (float2int(value / 3) - 1) * 300, 300, 300, images[2], () => { objects[1].setResult(this.value); });
+        super(540 + (value - 3 * float2int(value / 3) - 1) * 300, 1410 + (float2int(value / 3) - 1) * 300, 300, 300, images[2], () => { objects[2].setResult(this.value); });
         this.value = value + 1; this.render();
     }
     render() { super.render(); layers[1].context.fillText(this.value, this.transform.position.x, this.transform.position.y + 20); }
@@ -188,25 +184,31 @@ class Background extends GameObject {
 
 
 class Pet extends GameObject {
-    constructor() { super(540, 600, 600, 600); this.c = 0; this.dir = true; this.img = float2int(random() * (images.length - 11)); this.went = 0; }
+    constructor() {
+        super(540, 600, 1080, 700); this.dir = true;
+        this.img1 = float2int(random() * (images.length - 11));
+        this.img2 = float2int(random() * (images.length - 11));
+        this.went = 0;
+    }
 
     update() {
+        this.render();
         if(this.went > 0) {
             this.transform.position.x -= 70;
             if(this.dir) {
                 if(this.transform.position.x < -this.transform.size.x / 2) {
-                    this.transform.position.x += 1080 + this.transform.size.x;
-                    this.img = float2int(random() * (images.length - 11));
-                    this.dir = false; this.c = 0;
+                    this.img1 = this.img2; this.img2 = float2int(random() * (images.length - 11));
+                    this.transform.position.x += 1080 + this.transform.size.x / 2;
+                    this.dir = false;
                 }
-            } else { if(this.transform.position.x < 540) { this.dir = true; this.went -= 1; } }
-        } else {
-            this.c += 0.05; if(this.c > 2 * Math.PI) this.c = 0;
-            this.transform.position.x = float2int(540 + Math.sin(this.c) * 100);
+            } else { if(this.transform.position.x < 1080) { this.dir = true; this.went -= 1; this.transform.position.x = 540; this.render(); } }
         }
     }
 
-    lateUpdate() { renderImage(images[11 + this.img], this.transform, 0); }
+    render() {
+        renderImage(images[11 + this.img1], this.transform, 0);
+        renderImage(images[11 + this.img2], new Vector4(this.transform.position.x + 1080, this.transform.position.y, this.transform.size.x, this.transform.size.y), 0);
+    }
 
     newPet() { this.went += 1; }
 }
@@ -227,4 +229,4 @@ class Partical extends GameObject {
 }
 
 
-const loader = new Loader(14); loader.load();
+const loader = new Loader(25); loader.load();
