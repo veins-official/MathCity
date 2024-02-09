@@ -8,14 +8,23 @@ function load(scene) { clearObjects(); eval(`load${scene}()`); }
 
 
 function loadGame() {
-    layers[1].context.font = "200px Monaco, monospace";
+    layers[1].context.font = "180px Monaco, monospace";
     layers[1].context.textAlign = "center"; layers[1].context.textBaseline = "middle";
 
     objects.push(new Task()); objects.push(new Pet());
-    for (let i = 0; i < 9; i++) objects.push(new NumButton(i));
+    for (let i = -1; i < 9; i++) objects.push(new NumButton(i));
+
+    clearTransform(objects[4].transform, 1);
+    objects[4].transform.position = new Vector2(540 + 125, 1280 + 2 * 250);
+    objects[4].render();
+
+    clearTransform(objects[13].transform, 1);
+    objects[13].transform.position = new Vector2(540 - 125, 1280 + 2 * 250);
+    objects[13].render();
+
 
     objects.push(new MenuButton(100, 100, 150, 150, images[8], () => { load("Menu"); }));
-    objects[13].render();
+    objects[14].render();
 }
 
 
@@ -92,7 +101,7 @@ class Loader {
 
 class Studio extends Button {
     constructor() { super(-75, 1920 - 75, 150, 150); }
-    update() { super.update(); this.transform.position.x += 5; if(this.transform.position.x > 1080 + 75) this.transform.position.x = -75; }
+    update() { super.update(); this.transform.position.x += 5; if (this.transform.position.x > 1080 + 75) this.transform.position.x = -75; }
     onRelease() { load("About"); }
     lateUpdate() { renderImage(images[10], this.transform, 0); }
 }
@@ -111,54 +120,88 @@ class MenuButton extends Button {
     }
 
     onRelease() { this.animate(20); this.func(); }
-    
+
     onInterrupt() { this.animate(20); }
-    
+
     onPress() { this.animate(-20); }
 }
 
 
 class Task extends GameObject {
-    constructor() { super(540, 150, 700, 150); this.task; this.result; this.answer; this.mask = ""; this.t = 0; this.generateTask(); }
+    constructor() { super(540, 250, 1080, 150); this.img; this.result = ""; this.task; this.answer; this.mask = ""; this.t = 0; this.generateTask(); }
 
     lateUpdate() {
-        if(this.mask === this.task) return;
+        if (this.mask === this.img) return;
         clearTransform(this.transform, 1);
-        this.t += 0.3; this.mask = this.task.slice(0, float2int(this.t));
+        this.t += 0.5;
+        if(this.t > 1) {
+            if(this.mask.length > this.img.length) {
+                this.mask = this.mask.slice(0, this.mask.length - 1);
+            } else {
+                this.mask = this.img.slice(0, this.mask.length + 1);
+            }
+            this.t = 0;
+        }
         layers[1].context.fillText(this.mask, this.transform.position.x, this.transform.position.y + 20);
     }
 
     generateTask() {
         let num1, num2; this.t = 0;
         if (random() > 0.5) {
-            num1 = 1 + float2int(random() * 8);
-            num2 = 1 + float2int(random() * (9 - num1))
-            this.task = `${num1} + ${num2}`
+            num1 = 1 + float2int(random() * 18);
+            num2 = 1 + float2int(random() * (19 - num1));
+            this.task = `${num1} + ${num2}`;
             this.answer = num1 + num2;
         }
         else {
-            num1 = 2 + float2int(random() * 9);
-            num2 = 1 + float2int(random() * (num1 - 1))
-            this.task = `${num1} - ${num2}`
+            num1 = 2 + float2int(random() * 19);
+            num2 = 1 + float2int(random() * (num1 - 1));
+            this.task = `${num1} - ${num2}`;
             this.answer = num1 - num2;
         }
+        this.img = this.task
     }
 
     setResult(value) {
-        this.result = value;
-        let correct = this.result == this.answer;
-        if (correct) {
-            localStorage.setItem("correct", Number(localStorage.getItem("correct")) + 1)
-            objects[3].newPet(); this.generateTask();
-        } else { localStorage.setItem("wrong", Number(localStorage.getItem("wrong")) + 1) }
-        for(let i = 0; i < 7; i++) objects.push(new Partical(objects[3].transform.position.x, objects[3].transform.position.y, images[correct ? 7 : 8]));
+        this.result = `${value}`;
+
+        let correct = 0;
+        if (this.result != "") {
+            if (this.result.length != `${this.answer}`.length) {
+                for (let letter = 0; letter < this.result.length; letter++) {
+                    if (this.result[letter] != `${this.answer}`[letter]) {
+                        correct = -1;
+                        this.setResult("");
+                        break;
+                    }
+                }
+                this.img = this.task + " = " + this.result;
+            } else { correct = this.result == this.answer ? 1 : -1; }
+
+            if (correct == 1) {
+                localStorage.setItem("correct", Number(localStorage.getItem("correct")) + 1);
+                this.setResult("");
+                objects[3].newPet(); this.generateTask();
+                this.particals(true);
+                this.mask = "";
+            } else if (correct == -1) {
+                localStorage.setItem("wrong", Number(localStorage.getItem("wrong")) + 1);
+                this.setResult("");
+                this.img = this.task;
+                this.particals(false);
+            }
+        }
+    }
+
+    particals(t) {
+        for (let i = 0; i < 7; i++) objects.push(new Partical(objects[3].transform.position.x, objects[3].transform.position.y, images[t ? 7 : 8]));
     }
 }
 
 
 class NumButton extends MenuButton {
     constructor(value) {
-        super(540 + (value - 3 * float2int(value / 3) - 1) * 300, 1410 + (float2int(value / 3) - 1) * 300, 300, 300, images[2], () => { objects[2].setResult(this.value); });
+        super(410 + (value - 4 * float2int(value / 4) - 1) * 250, 1530 + (float2int(value / 4) - 1) * 250, 250, 250, images[2], () => { objects[2].setResult(objects[2].result + this.value); });
         this.value = value + 1; this.render();
     }
     render() { super.render(); layers[1].context.fillText(this.value, this.transform.position.x, this.transform.position.y + 20); }
@@ -169,8 +212,8 @@ class Background extends GameObject {
     constructor() { super(540, 960, 1080, 1920); }
 
     update() {
-        this.transform.position.x += 2000/1920; if(this.transform.position.x > 1620) this.transform.position.x -= 1080;
-        this.transform.position.y += 2000/1080; if(this.transform.position.y > 2880) this.transform.position.y -= 1920;
+        this.transform.position.x += 2000 / 1920; if (this.transform.position.x > 1620) this.transform.position.x -= 1080;
+        this.transform.position.y += 2000 / 1080; if (this.transform.position.y > 2880) this.transform.position.y -= 1920;
         this.render(new Vector2(float2int(this.transform.position.x), float2int(this.transform.position.y)));
     }
 
@@ -185,7 +228,7 @@ class Background extends GameObject {
 
 class Pet extends GameObject {
     constructor() {
-        super(540, 600, 1080, 700); this.dir = true;
+        super(540, 750, 1080, 750); this.dir = true;
         this.img1 = float2int(random() * (images.length - 11));
         this.img2 = float2int(random() * (images.length - 11));
         this.went = 0;
@@ -193,15 +236,15 @@ class Pet extends GameObject {
 
     update() {
         this.render();
-        if(this.went > 0) {
+        if (this.went > 0) {
             this.transform.position.x -= 70;
-            if(this.dir) {
-                if(this.transform.position.x < -this.transform.size.x / 2) {
+            if (this.dir) {
+                if (this.transform.position.x < -this.transform.size.x / 2) {
                     this.img1 = this.img2; this.img2 = float2int(random() * (images.length - 11));
                     this.transform.position.x += 1080 + this.transform.size.x / 2;
                     this.dir = false;
                 }
-            } else { if(this.transform.position.x < 1080) { this.dir = true; this.went -= 1; this.transform.position.x = 540; this.render(); } }
+            } else { if (this.transform.position.x < 1080) { this.dir = true; this.went -= 1; this.transform.position.x = 540; this.render(); } }
         }
     }
 
@@ -220,7 +263,7 @@ class Partical extends GameObject {
     update() {
         this.velocity.y += 1; this.transform.position.x += this.velocity.x;
         this.transform.position.y += this.velocity.y;
-        if(this.transform.position.y > 1920 + this.transform.size.y / 2) this.destroyed = true;
+        if (this.transform.position.y > 1920 + this.transform.size.y / 2) this.destroyed = true;
     }
 
     lateUpdate() { this.render(); }
